@@ -83,6 +83,41 @@ const getCategoryIcon = (name: string) => {
   return <Tag className="w-4 h-4" />;
 };
 
+const AnimatedNumber: React.FC<{ value: number }> = ({ value }) => {
+  const [displayValue, setDisplayValue] = React.useState(value);
+
+  React.useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion || value === 0) {
+      setDisplayValue(value);
+      return;
+    }
+
+    let start = 0;
+    const duration = 500;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + (value - start) * easeOut);
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+};
+
 export const HomeWorkspace: React.FC<HomeWorkspaceProps> = ({
   search,
   onSearchChange,
@@ -245,7 +280,7 @@ export const HomeWorkspace: React.FC<HomeWorkspaceProps> = ({
             >
               <div className="text-[11px] text-ink-secondary font-medium">Reports</div>
               <div className="text-lg font-bold text-ink mt-0.5 font-mono">
-                {userStats.reportsCount}
+                <AnimatedNumber value={userStats.reportsCount} />
               </div>
             </div>
 
@@ -255,21 +290,21 @@ export const HomeWorkspace: React.FC<HomeWorkspaceProps> = ({
             >
               <div className="text-[11px] text-ink-secondary font-medium">Claims</div>
               <div className="text-lg font-bold text-ink mt-0.5 font-mono">
-                {userStats.claimsCount}
+                <AnimatedNumber value={userStats.claimsCount} />
               </div>
             </div>
 
             <div className="p-3 bg-surface border border-surface-border rounded-lg shadow-xs">
               <div className="text-[11px] text-ink-secondary font-medium">Resolved</div>
               <div className="text-lg font-bold text-found font-mono mt-0.5">
-                {userStats.resolvedCount}
+                <AnimatedNumber value={userStats.resolvedCount} />
               </div>
             </div>
 
             <div className="p-3 bg-surface border border-surface-border rounded-lg shadow-xs">
               <div className="text-[11px] text-ink-secondary font-medium">Pending</div>
               <div className="text-lg font-bold text-amber-600 font-mono mt-0.5">
-                {userStats.pendingCount}
+                <AnimatedNumber value={userStats.pendingCount} />
               </div>
             </div>
           </div>

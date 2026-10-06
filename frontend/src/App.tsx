@@ -15,6 +15,7 @@ import { AdminDashboardView } from './components/admin/AdminDashboardView';
 import { AuthModal } from './components/auth/AuthModal';
 import { LoadingSkeleton } from './components/common/LoadingSkeleton';
 import { EmptyState } from './components/common/EmptyState';
+import { CommandPalette } from './components/common/CommandPalette';
 import type {
   ItemSummary,
   ItemDetail,
@@ -80,6 +81,19 @@ const MainAppContent: React.FC = () => {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [reviewingClaimId, setReviewingClaimId] = useState<string | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  // Global Ctrl+K / Cmd+K listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Initial lookup data
   useEffect(() => {
@@ -472,6 +486,29 @@ const MainAppContent: React.FC = () => {
           }}
         />
       )}
+
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSelectTab={handleSelectTab}
+        onOpenReport={handleOpenReport}
+        onSelectCategory={(catId) => {
+          setSelectedCategory(catId);
+          setCurrentPage(0);
+        }}
+        onSelectLocation={(locId) => {
+          setSelectedLocation(locId);
+          setCurrentPage(0);
+        }}
+        onPerformSearch={(q) => {
+          setSearch(q);
+          setCurrentPage(0);
+        }}
+        categories={categories}
+        locationZones={locationZones}
+        items={feedResponse?.content || []}
+        onSelectItem={(id) => setSelectedItemId(id)}
+      />
 
       <Footer />
     </div>
