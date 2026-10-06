@@ -1,0 +1,17 @@
+package com.campus.lostfound.entity;
+
+public enum AuditAction {
+    USER_REGISTERED,
+    LOGIN_FAILURE,
+    ITEM_CREATED,
+    ITEM_UPDATED,
+    ITEM_ARCHIVED,
+    CLAIM_SUBMITTED,
+    CLAIM_APPROVED,
+    CLAIM_REJECTED,
+    ITEM_RESOLVED,
+    USER_BLOCKED,
+    USER_UNBLOCKED,
+    ROLE_CHANGED,
+    ADMIN_ACTION
+}

@@ -1,0 +1,50 @@
+# Root Git Ignore for Lost & Found Hub
+
+# Environments and Secrets
+.env
+.env.local
+.env.*.local
+*.local
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.mvn/wrapper/maven-wrapper.jar
+.project
+.classpath
+.settings/
+.idea/
+*.iml
+*.iws
+*.ipr
+/backend/target/
+
+# Node / Vite / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+.eslintcache
+/frontend/node_modules/
+/frontend/dist/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+!.vscode/extensions.json
+
+# Local Uploads
+uploads/
+/backend/uploads/
+
+# Context & Documentation Specifications Excluded from Remote
+context/
+/context/
+*.tmp
