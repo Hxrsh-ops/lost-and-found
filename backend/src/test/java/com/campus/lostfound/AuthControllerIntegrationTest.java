@@ -5,7 +5,14 @@ import com.campus.lostfound.dto.auth.RegisterRequest;
 import com.campus.lostfound.entity.User;
 import com.campus.lostfound.entity.UserRole;
 import com.campus.lostfound.entity.UserStatus;
+import com.campus.lostfound.entity.Notification;
+import com.campus.lostfound.entity.NotificationType;
 import com.campus.lostfound.repository.AuditLogRepository;
+import com.campus.lostfound.repository.CategoryRepository;
+import com.campus.lostfound.repository.ClaimRepository;
+import com.campus.lostfound.repository.LocationZoneRepository;
+import com.campus.lostfound.repository.NotificationRepository;
+import com.campus.lostfound.repository.ItemRepository;
 import com.campus.lostfound.repository.UserRepository;
 import com.campus.lostfound.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,10 +45,25 @@ class AuthControllerIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;
+    private ClaimRepository claimRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private LocationZoneRepository locationZoneRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -54,7 +76,12 @@ class AuthControllerIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        claimRepository.deleteAll();
+        notificationRepository.deleteAll();
         auditLogRepository.deleteAll();
+        itemRepository.deleteAll();
+        categoryRepository.deleteAll();
+        locationZoneRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -217,5 +244,25 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(get("/api/auth/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should maintain database isolation when pre-existing notifications reference registered users")
+    void shouldMaintainDatabaseIsolationWithExistingNotifications() throws Exception {
+        User user = new User("Notified Student", "notified@srm.edu", passwordEncoder.encode("SecretPass123!"), UserRole.STUDENT, UserStatus.ACTIVE);
+        User savedUser = userRepository.saveAndFlush(user);
+
+        Notification notification = new Notification(
+                null, savedUser, NotificationType.CLAIM_SUBMITTED, "Test Title", "Test Message"
+        );
+        notificationRepository.saveAndFlush(notification);
+
+        // Verify login works seamlessly when user has existing notifications
+        LoginRequest request = new LoginRequest("notified@srm.edu", "SecretPass123!");
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", notNullValue()));
     }
 }

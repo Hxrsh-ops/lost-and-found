@@ -44,8 +44,7 @@ Thumbs.db
 uploads/
 /backend/uploads/
 
-# Context & Documentation Specifications Excluded from Remote
-context/
+# Context & Documentation Specifications Excluded from Remote (Root Only)
 /context/
 # Keep frontend runtime context files tracked; the root context/ rule is for the project spec directory.
 !frontend/src/context/

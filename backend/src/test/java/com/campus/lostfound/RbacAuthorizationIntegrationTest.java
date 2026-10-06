@@ -4,6 +4,11 @@ import com.campus.lostfound.entity.User;
 import com.campus.lostfound.entity.UserRole;
 import com.campus.lostfound.entity.UserStatus;
 import com.campus.lostfound.repository.AuditLogRepository;
+import com.campus.lostfound.repository.CategoryRepository;
+import com.campus.lostfound.repository.ClaimRepository;
+import com.campus.lostfound.repository.LocationZoneRepository;
+import com.campus.lostfound.repository.NotificationRepository;
+import com.campus.lostfound.repository.ItemRepository;
 import com.campus.lostfound.repository.UserRepository;
 import com.campus.lostfound.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,10 +37,25 @@ class RbacAuthorizationIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;
+    private ClaimRepository claimRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private LocationZoneRepository locationZoneRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -49,7 +69,12 @@ class RbacAuthorizationIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        claimRepository.deleteAll();
+        notificationRepository.deleteAll();
         auditLogRepository.deleteAll();
+        itemRepository.deleteAll();
+        categoryRepository.deleteAll();
+        locationZoneRepository.deleteAll();
         userRepository.deleteAll();
 
         User student = new User("Student User", "student.rbac@srm.edu", passwordEncoder.encode("pwd12345"), UserRole.STUDENT, UserStatus.ACTIVE);
