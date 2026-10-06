@@ -312,6 +312,7 @@ const MainAppContent: React.FC = () => {
             isAuthenticated={isAuthenticated}
             userStats={userStats}
             onNavigateToTab={(t) => handleSelectTab(t)}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           />
         )}
 
