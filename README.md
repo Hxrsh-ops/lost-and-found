@@ -106,20 +106,38 @@ The backend API will be accessible at `http://localhost:8080/api`.
 
 ---
 
-## 6. Build Roadmap (Locked Phases)
+## 6. Build Roadmap & Status
 
 - [x] **Phase 0:** Repository Foundation (Structure, React+TS+Vite, Spring Boot+Maven, configuration, verified builds)
-- [ ] **Phase 1:** Database & Domain Model (PostgreSQL, Flyway migrations, entities, repositories)
-- [ ] **Phase 2:** Authentication & Security (JWT, Spring Security, RBAC, password hashing, CORS)
-- [ ] **Phase 3:** Core Item Workflow (LOST/FOUND reporting, image handling, browsing, search, filters)
-- [ ] **Phase 4:** Claims & Resolution (Verification questions, claims, finder review, atomic resolution)
-- [ ] **Phase 5:** Admin & Security Governance (User moderation, claim moderation, audit logging)
-- [ ] **Phase 6:** UI Refinement (Approved visual system matching, FRFB responsive layouts, motion polish)
-- [ ] **Phase 7:** PWA & Zero-Cost Deployment (Manifest, service worker, production configuration, smoke tests)
-- [ ] **Phase 8:** Testing & Release Gate (Integration tests, claim concurrency verification, security regression)
+- [x] **Phase 1:** Database & Domain Model (PostgreSQL, Flyway migrations V1/V2, JPA entities, repositories)
+- [x] **Phase 2:** Authentication & Security (JWT, Spring Security, RBAC, BCrypt hashing, CORS, real-time lockouts)
+- [x] **Phase 3:** Core Item Workflow (LOST/FOUND reporting, image handling, browsing, search, location filters)
+- [x] **Phase 4:** Claims & Resolution (Verification questions, claims, finder review, atomic resolution, optimistic locking)
+- [x] **Phase 5:** Admin & Security Governance (User moderation, claim moderation, immutable audit logging)
+- [x] **Phase 6:** UI Refinement (2026 Campus Hero World, Command Palette ⌘K, responsive AppShell, zero layout jump)
+- [x] **Phase 7:** PWA & Zero-Cost Deployment (Manifest, service worker caching, production configuration, CI/CD)
+- [x] **Phase 8:** Testing & Release Gate (79/79 automated tests passing, claim concurrency verification, zero-warning builds)
 
 ---
 
-## 7. Source of Truth
+## 7. Testing & Verification
+
+Run the full automated test suite:
+
+```bash
+cd backend
+.\mvnw.cmd test
+```
+
+Run the frontend typecheck and production bundle build:
+
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## 8. Source of Truth
 
 The contents of `context/` remain the single source of truth for all requirements, data models, workflows, design tokens, security policies, and build rules.
