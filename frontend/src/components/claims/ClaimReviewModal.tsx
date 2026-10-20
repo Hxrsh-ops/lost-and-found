@@ -33,6 +33,8 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [rejectionNote, setRejectionNote] = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [approveNote, setApproveNote] = useState('');
+  const [showApproveInput, setShowApproveInput] = useState(false);
 
   const fetchClaim = useCallback(async () => {
     setLoading(true);
@@ -56,20 +58,20 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
       fetchClaim();
       setShowRejectInput(false);
       setRejectionNote('');
+      setShowApproveInput(false);
+      setApproveNote('');
     }
   }, [isOpen, claimId, fetchClaim]);
 
   if (!isOpen) return null;
 
-  const handleApprove = async () => {
-    if (!window.confirm('Are you sure you want to approve this claim? The item will be marked as RESOLVED and all other pending claims will be rejected.')) {
-      return;
-    }
+  const handleApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     setSubmitting(true);
     setError(null);
     try {
-      await claimService.approveClaim(claimId);
+      await claimService.approveClaim(claimId, { reviewNote: approveNote.trim() });
       onClaimUpdated();
       onClose();
     } catch (err: unknown) {
@@ -152,18 +154,24 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
+            <div className={`w-7 h-7 rounded-lg border flex items-center justify-center ${
+              claim?.itemType === 'LOST' 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600'
+                : 'bg-accent/10 border-accent/20 text-accent'
+            }`}>
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 id="claim-review-title" className="font-semibold text-ink text-sm">
-                  Claim Review
+                  {claim?.itemType === 'LOST' ? 'Recovery Lead / Found Report' : 'Claim Review'}
                 </h2>
                 {claim && renderStatusBadge(claim.status)}
               </div>
               <p className="text-xs text-ink-secondary">
-                Review claimant identity and ownership verification response.
+                {claim?.itemType === 'LOST'
+                  ? 'Review finder details and location to confirm recovery of your lost item.'
+                  : 'Review claimant identity and ownership verification response.'}
               </p>
             </div>
           </div>
@@ -188,7 +196,7 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
           {loading ? (
             <div className="py-10 text-center text-ink-muted text-xs flex flex-col items-center gap-2">
               <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span>Loading claim details...</span>
+              <span>Loading details...</span>
             </div>
           ) : claim ? (
             <>
@@ -206,17 +214,27 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-medium text-ink text-xs truncate">{claim.itemTitle}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      claim.itemType === 'LOST'
+                        ? 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
+                        : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
+                    }`}>
+                      {claim.itemType}
+                    </span>
+                    <h4 className="font-medium text-ink text-xs truncate">{claim.itemTitle}</h4>
+                  </div>
                   <p className="text-[11px] text-ink-secondary mt-0.5">
                     Item Status: <span className="font-semibold text-ink">{claim.itemStatus}</span>
                   </p>
                 </div>
               </div>
 
-              {/* Claimant Information */}
+              {/* Claimant / Finder Information */}
               <div className="p-3.5 rounded-lg bg-surface-secondary border border-surface-border space-y-1">
                 <div className="text-[11px] font-medium text-ink-muted flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-accent" /> Claimant Details
+                  <User className="w-3.5 h-3.5 text-accent" />
+                  {claim.itemType === 'LOST' ? 'Finder Details' : 'Claimant Details'}
                 </div>
                 <div className="font-semibold text-ink text-xs">{claim.claimantName}</div>
                 {claim.claimantEmail && (
@@ -228,11 +246,13 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                 </div>
               </div>
 
-              {/* Claimant's Answer / Verification Proof */}
+              {/* Claimant's Answer / Verification Proof / Finder's report */}
               {claim.answer ? (
                 <div className="p-3.5 rounded-lg bg-surface-secondary border border-surface-border space-y-1.5">
                   <div className="text-[11px] font-medium text-ink">
-                    Claimant's Verification Answer
+                    {claim.itemType === 'LOST'
+                      ? "Finder's Report & Custody / Handover Details"
+                      : "Claimant's Verification Answer / Ownership Proof"}
                   </div>
                   <p className="text-xs text-ink whitespace-pre-wrap leading-relaxed bg-surface p-2.5 rounded-lg border border-surface-border">
                     {claim.answer}
@@ -240,7 +260,7 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                 </div>
               ) : (
                 <div className="p-3 rounded-lg bg-surface-secondary border border-surface-border italic text-ink-muted text-xs">
-                  (Verification answer is confidential and visible only to item owners and security staff)
+                  (Confidential submission visible only to item owners and security staff)
                 </div>
               )}
 
@@ -248,7 +268,7 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
               {claim.reviewNote && (
                 <div className="p-3.5 rounded-lg bg-red-500/5 border border-red-500/20 space-y-1">
                   <div className="text-[11px] font-semibold text-red-700">
-                    Rejection Reason
+                    Decision Note
                   </div>
                   <p className="text-xs text-red-700">{claim.reviewNote}</p>
                 </div>
@@ -257,16 +277,18 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
               {/* Action Buttons for Reviewer */}
               {claim.status === 'PENDING' && claim.canReview && (
                 <div className="pt-2">
-                  {!showRejectInput ? (
+                  {!showRejectInput && !showApproveInput ? (
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
                         type="button"
-                        onClick={handleApprove}
+                        onClick={() => setShowApproveInput(true)}
                         disabled={submitting}
                         className="py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Approve & Resolve Item</span>
+                        <span>
+                          {claim.itemType === 'LOST' ? 'Confirm Item Recovered' : 'Approve & Resolve Item'}
+                        </span>
                       </button>
                       <button
                         type="button"
@@ -275,14 +297,14 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                         className="py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-700 border border-red-500/20 text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                       >
                         <XCircle className="w-3.5 h-3.5" />
-                        <span>Reject Claim</span>
+                        <span>{claim.itemType === 'LOST' ? 'Decline Lead' : 'Reject Claim'}</span>
                       </button>
                     </div>
-                  ) : (
+                  ) : showRejectInput ? (
                     <form onSubmit={handleReject} className="space-y-2.5 p-3.5 rounded-lg bg-red-500/5 border border-red-500/20">
                       <div className="space-y-1">
                         <label htmlFor="rejection-reason" className="block text-xs font-medium text-red-700">
-                          Rejection Reason <span className="text-red-600">*</span>
+                          {claim.itemType === 'LOST' ? 'Reason for Declining Lead' : 'Rejection Reason'} <span className="text-red-600">*</span>
                         </label>
                         <textarea
                           id="rejection-reason"
@@ -291,7 +313,11 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                           disabled={submitting}
                           value={rejectionNote}
                           onChange={(e) => setRejectionNote(e.target.value)}
-                          placeholder="State why the proof is insufficient or does not match..."
+                          placeholder={
+                            claim.itemType === 'LOST'
+                              ? 'e.g. This is a different model/color, or not the item I lost...'
+                              : 'State why the proof is insufficient or does not match...'
+                          }
                           className="w-full px-3 py-1.5 bg-surface border border-red-500/30 rounded-lg text-xs text-ink focus:outline-none focus:border-red-500"
                         />
                       </div>
@@ -310,7 +336,48 @@ export const ClaimReviewModal: React.FC<ClaimReviewModalProps> = ({
                           disabled={submitting || !rejectionNote.trim()}
                           className="px-3.5 py-1 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer"
                         >
-                          {submitting ? 'Rejecting...' : 'Confirm Rejection'}
+                          {submitting ? 'Declining...' : claim.itemType === 'LOST' ? 'Confirm Decline' : 'Confirm Rejection'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleApprove} className="space-y-2.5 p-3.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                      <div className="space-y-1">
+                        <label htmlFor="approval-reason" className="block text-xs font-medium text-emerald-700">
+                          {claim.itemType === 'LOST'
+                            ? 'Meeting / Handover Confirmation Note (Optional)'
+                            : 'Meeting Location & Return Instructions'}
+                        </label>
+                        <textarea
+                          id="approval-reason"
+                          rows={3}
+                          disabled={submitting}
+                          value={approveNote}
+                          onChange={(e) => setApproveNote(e.target.value)}
+                          placeholder={
+                            claim.itemType === 'LOST'
+                              ? 'e.g. Met at the library, verified ownership, item retrieved. Thank you so much!'
+                              : 'e.g. Meet me at the Central Library entrance at 4 PM tomorrow...'
+                          }
+                          className="w-full px-3 py-1.5 bg-surface border border-emerald-500/30 rounded-lg text-xs text-ink focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowApproveInput(false)}
+                          disabled={submitting}
+                          className="px-3 py-1 rounded-lg border border-surface-border text-xs text-ink-secondary hover:bg-surface-secondary transition-colors cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3 h-3 inline mr-1" />
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="px-3.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {submitting ? 'Confirming...' : claim.itemType === 'LOST' ? 'Confirm & Resolve' : 'Confirm Approval'}
                         </button>
                       </div>
                     </form>

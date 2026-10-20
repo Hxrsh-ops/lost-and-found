@@ -142,6 +142,10 @@ export interface RejectClaimPayload {
   reviewNote: string;
 }
 
+export interface ApproveClaimPayload {
+  reviewNote?: string;
+}
+
 export type NotificationType =
   | 'CLAIM_SUBMITTED'
   | 'CLAIM_APPROVED'

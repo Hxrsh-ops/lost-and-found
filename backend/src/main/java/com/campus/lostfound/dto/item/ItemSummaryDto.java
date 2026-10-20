@@ -55,7 +55,7 @@ public class ItemSummaryDto {
                 : null;
 
         int imgCount = (item.getImages() != null) ? item.getImages().size() : 0;
-        boolean hasVerification = item.getType() == ItemType.FOUND && StringUtils.hasText(item.getVerificationQuestion());
+        boolean hasVerification = StringUtils.hasText(item.getVerificationQuestion());
 
         return new ItemSummaryDto(
                 item.getId(),

@@ -65,4 +65,8 @@ export const itemService = {
   async deleteImage(itemId: string, imageId: string): Promise<void> {
     return apiClient.delete<void>(`/items/${itemId}/images/${imageId}`);
   },
+
+  async resolveItem(itemId: string): Promise<ItemDetail> {
+    return apiClient.post<ItemDetail>(`/items/${itemId}/resolve`);
+  },
 };

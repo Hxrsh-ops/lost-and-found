@@ -110,7 +110,7 @@ class ClaimConcurrencyIntegrationTest {
             readyLatch.countDown();
             try {
                 startLatch.await();
-                ClaimDetailDto res = claimService.approveClaim(claimA.getId(), finder.getEmail());
+                ClaimDetailDto res = claimService.approveClaim(claimA.getId(), null, finder.getEmail());
                 if (res != null && res.getStatus() == ClaimStatus.APPROVED) {
                     successCount.incrementAndGet();
                 }
@@ -127,7 +127,7 @@ class ClaimConcurrencyIntegrationTest {
             readyLatch.countDown();
             try {
                 startLatch.await();
-                ClaimDetailDto res = claimService.approveClaim(claimB.getId(), finder.getEmail());
+                ClaimDetailDto res = claimService.approveClaim(claimB.getId(), null, finder.getEmail());
                 if (res != null && res.getStatus() == ClaimStatus.APPROVED) {
                     successCount.incrementAndGet();
                 }

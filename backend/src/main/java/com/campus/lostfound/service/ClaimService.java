@@ -1,5 +1,6 @@
 package com.campus.lostfound.service;
 
+import com.campus.lostfound.dto.ApproveClaimRequest;
 import com.campus.lostfound.dto.ClaimDetailDto;
 import com.campus.lostfound.dto.ClaimSummaryDto;
 import com.campus.lostfound.dto.CreateClaimRequest;
@@ -19,7 +20,7 @@ public interface ClaimService {
 
     PageResponse<ClaimDetailDto> getClaimsForReview(UUID itemId, ClaimStatus status, int page, int size, String userEmail);
 
-    ClaimDetailDto approveClaim(UUID claimId, String userEmail);
+    ClaimDetailDto approveClaim(UUID claimId, ApproveClaimRequest request, String userEmail);
 
     ClaimDetailDto rejectClaim(UUID claimId, RejectClaimRequest request, String userEmail);
 }

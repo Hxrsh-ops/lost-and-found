@@ -6,6 +6,7 @@ import type {
   CreateClaimPayload,
   PaginatedResponse,
   RejectClaimPayload,
+  ApproveClaimPayload,
 } from '../types';
 
 export interface GetClaimsParams {
@@ -38,8 +39,8 @@ export const claimService = {
     return apiClient.get<ClaimDetail>(`/claims/${claimId}`);
   },
 
-  async approveClaim(claimId: string): Promise<ClaimDetail> {
-    return apiClient.post<ClaimDetail>(`/claims/${claimId}/approve`, {});
+  async approveClaim(claimId: string, payload?: ApproveClaimPayload): Promise<ClaimDetail> {
+    return apiClient.post<ClaimDetail>(`/claims/${claimId}/approve`, payload || {});
   },
 
   async rejectClaim(claimId: string, payload: RejectClaimPayload): Promise<ClaimDetail> {

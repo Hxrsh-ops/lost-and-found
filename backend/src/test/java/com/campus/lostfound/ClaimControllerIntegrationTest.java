@@ -166,16 +166,25 @@ class ClaimControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Cannot submit claim for a LOST item")
-    void testSubmitClaimForLostItemFails() throws Exception {
-        CreateClaimRequest req = new CreateClaimRequest("It is mine");
+    @DisplayName("Eligible student can submit a found recovery lead for an OPEN LOST item")
+    void testSubmitClaimForLostItemSucceeds() throws Exception {
+        CreateClaimRequest req = new CreateClaimRequest("I found your black wallet at the cafeteria counter!");
 
         mockMvc.perform(post("/api/items/" + lostItem.getId() + "/claims")
                         .header("Authorization", "Bearer " + otherStudentToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("Claims can only be submitted for FOUND items")));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.itemId").value(lostItem.getId().toString()))
+                .andExpect(jsonPath("$.itemTitle").value("Lost Black Wallet"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.claimantName").value("Other Student"))
+                .andExpect(jsonPath("$.answer").value("I found your black wallet at the cafeteria counter!"))
+                .andExpect(jsonPath("$.isClaimant").value(true));
+
+        // Verify notification sent to the owner of the lost item (claimant user)
+        assertEquals(1, notificationRepository.countByUserIdAndReadFalse(claimant.getId()));
     }
 
     @Test
@@ -353,5 +362,39 @@ class ClaimControllerIntegrationTest {
         mockMvc.perform(post("/api/claims/" + claim.getId() + "/reject")
                         .header("Authorization", "Bearer " + finderToken))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Owner can approve recovery claim on LOST item, resolving the lost item")
+    void testOwnerCanApproveClaimOnLostItemAndResolveIt() throws Exception {
+        Claim claim = claimRepository.save(new Claim(null, lostItem, otherStudent, "Found it near cafeteria"));
+
+        mockMvc.perform(post("/api/claims/" + claim.getId() + "/approve")
+                        .header("Authorization", "Bearer " + claimantToken) // claimant is owner of lostItem
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reviewNote\":\"Thank you so much!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.reviewNote").value("Thank you so much!"))
+                .andExpect(jsonPath("$.itemStatus").value("RESOLVED"));
+
+        Item updatedLostItem = itemRepository.findById(lostItem.getId()).orElseThrow();
+        assertEquals(ItemStatus.RESOLVED, updatedLostItem.getStatus());
+        assertNotNull(updatedLostItem.getResolvedAt());
+
+        // Verify helper was notified of confirmed recovery
+        assertEquals(1, notificationRepository.countByUserIdAndReadFalse(otherStudent.getId()));
+    }
+
+    @Test
+    @DisplayName("Owner can directly resolve their own item via /api/items/{id}/resolve")
+    void testOwnerCanDirectlyResolveItem() throws Exception {
+        mockMvc.perform(post("/api/items/" + lostItem.getId() + "/resolve")
+                        .header("Authorization", "Bearer " + claimantToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESOLVED"));
+
+        Item updated = itemRepository.findById(lostItem.getId()).orElseThrow();
+        assertEquals(ItemStatus.RESOLVED, updated.getStatus());
     }
 }

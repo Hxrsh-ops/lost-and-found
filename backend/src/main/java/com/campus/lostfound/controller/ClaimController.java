@@ -3,6 +3,7 @@ package com.campus.lostfound.controller;
 import com.campus.lostfound.dto.ClaimDetailDto;
 import com.campus.lostfound.dto.ClaimSummaryDto;
 import com.campus.lostfound.dto.CreateClaimRequest;
+import com.campus.lostfound.dto.ApproveClaimRequest;
 import com.campus.lostfound.dto.RejectClaimRequest;
 import com.campus.lostfound.dto.common.PageResponse;
 import com.campus.lostfound.entity.ClaimStatus;
@@ -75,8 +76,9 @@ public class ClaimController {
     @PostMapping("/claims/{claimId}/approve")
     public ResponseEntity<ClaimDetailDto> approveClaim(
             @PathVariable UUID claimId,
+            @RequestBody(required = false) ApproveClaimRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(claimService.approveClaim(claimId, userDetails.getUsername()));
+        return ResponseEntity.ok(claimService.approveClaim(claimId, request, userDetails.getUsername()));
     }
 
     @PostMapping("/claims/{claimId}/reject")

@@ -28,8 +28,13 @@ import com.campus.lostfound.repository.ItemRepository;
 import com.campus.lostfound.repository.LocationZoneRepository;
 import com.campus.lostfound.repository.UserRepository;
 import com.campus.lostfound.security.UserPrincipal;
+import com.campus.lostfound.entity.Claim;
+import com.campus.lostfound.entity.ClaimStatus;
+import com.campus.lostfound.entity.NotificationType;
+import com.campus.lostfound.repository.ClaimRepository;
 import com.campus.lostfound.service.FileStorageService;
 import com.campus.lostfound.service.ItemService;
+import com.campus.lostfound.service.NotificationService;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +67,8 @@ public class ItemServiceImpl implements ItemService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final FileStorageService fileStorageService;
+    private final ClaimRepository claimRepository;
+    private final NotificationService notificationService;
 
     public ItemServiceImpl(ItemRepository itemRepository,
                            ItemImageRepository itemImageRepository,
@@ -69,7 +76,9 @@ public class ItemServiceImpl implements ItemService {
                            LocationZoneRepository locationZoneRepository,
                            UserRepository userRepository,
                            AuditLogRepository auditLogRepository,
-                           FileStorageService fileStorageService) {
+                           FileStorageService fileStorageService,
+                           ClaimRepository claimRepository,
+                           NotificationService notificationService) {
         this.itemRepository = itemRepository;
         this.itemImageRepository = itemImageRepository;
         this.categoryRepository = categoryRepository;
@@ -77,6 +86,8 @@ public class ItemServiceImpl implements ItemService {
         this.userRepository = userRepository;
         this.auditLogRepository = auditLogRepository;
         this.fileStorageService = fileStorageService;
+        this.claimRepository = claimRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -105,13 +116,11 @@ public class ItemServiceImpl implements ItemService {
         String verificationQuestion = null;
         String verificationAnswer = null;
 
-        if (request.getType() == ItemType.FOUND) {
-            if (StringUtils.hasText(request.getVerificationQuestion())) {
-                verificationQuestion = request.getVerificationQuestion().trim();
-            }
-            if (StringUtils.hasText(request.getVerificationAnswer())) {
-                verificationAnswer = request.getVerificationAnswer().trim();
-            }
+        if (StringUtils.hasText(request.getVerificationQuestion())) {
+            verificationQuestion = request.getVerificationQuestion().trim();
+        }
+        if (StringUtils.hasText(request.getVerificationAnswer())) {
+            verificationAnswer = request.getVerificationAnswer().trim();
         }
 
         Item item = new Item(
@@ -324,13 +333,11 @@ public class ItemServiceImpl implements ItemService {
             item.setOccurredAt(request.getOccurredAt());
         }
 
-        if (item.getType() == ItemType.FOUND) {
-            if (request.getVerificationQuestion() != null) {
-                item.setVerificationQuestion(request.getVerificationQuestion().trim());
-            }
-            if (request.getVerificationAnswer() != null) {
-                item.setVerificationAnswer(request.getVerificationAnswer().trim());
-            }
+        if (request.getVerificationQuestion() != null) {
+            item.setVerificationQuestion(request.getVerificationQuestion().trim());
+        }
+        if (request.getVerificationAnswer() != null) {
+            item.setVerificationAnswer(request.getVerificationAnswer().trim());
         }
 
         Item updatedItem = itemRepository.save(item);
@@ -422,6 +429,62 @@ public class ItemServiceImpl implements ItemService {
         fileStorageService.delete(image.getStorageKey());
         itemImageRepository.delete(image);
         log.info("Deleted image {} for item {}", imageId, itemId);
+    }
+
+    @Override
+    @Transactional
+    public ItemDetailDto resolveItem(UUID itemId, UserPrincipal principal) {
+        if (principal == null) {
+            throw new InvalidCredentialsException();
+        }
+
+        Item item = itemRepository.findByIdWithPessimisticLock(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item", "id", itemId));
+
+        boolean isOwner = item.getReporter().getId().equals(principal.getId());
+        boolean isStaff = principal.getRole() == UserRole.SECURITY || principal.getRole() == UserRole.ADMIN;
+
+        if (!isOwner && !isStaff) {
+            log.warn("Unauthorized resolve attempt for item {} by user {}", itemId, principal.getId());
+            throw new ApiException("You do not have permission to resolve this item", HttpStatus.FORBIDDEN) {};
+        }
+
+        if (item.getStatus() != ItemStatus.OPEN) {
+            throw new ApiException("Item is already " + item.getStatus() + ". Only OPEN items can be resolved.", HttpStatus.CONFLICT) {};
+        }
+
+        Instant now = Instant.now();
+        item.setStatus(ItemStatus.RESOLVED);
+        item.setResolvedAt(now);
+        Item savedItem = itemRepository.save(item);
+
+        // Reject competing pending claims and notify claimants
+        List<Claim> pendingClaims = claimRepository.findByItemIdAndStatus(itemId, ClaimStatus.PENDING);
+        for (Claim claim : pendingClaims) {
+            claim.setStatus(ClaimStatus.REJECTED);
+            claim.setDecidedAt(now);
+            claim.setReviewNote("Item was marked as resolved by the reporter.");
+            claimRepository.save(claim);
+
+            notificationService.createNotification(
+                    claim.getClaimant(),
+                    NotificationType.CLAIM_REJECTED,
+                    "Item Resolved",
+                    "The item \"" + item.getTitle() + "\" was marked as resolved by the reporter."
+            );
+        }
+
+        AuditLog auditLog = new AuditLog(
+                userRepository.getReferenceById(principal.getId()),
+                AuditAction.ITEM_RESOLVED,
+                "ITEM",
+                savedItem.getId(),
+                "{\"title\":\"" + savedItem.getTitle() + "\",\"resolvedDirectly\":true}"
+        );
+        auditLogRepository.save(auditLog);
+        log.info("Directly resolved item ID {} by user {}", savedItem.getId(), principal.getId());
+
+        return ItemDetailDto.fromEntity(savedItem, principal.getId());
     }
 
     private Sort parseSort(String sortStr) {

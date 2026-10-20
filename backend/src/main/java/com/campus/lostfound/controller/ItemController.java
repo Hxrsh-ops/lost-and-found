@@ -99,4 +99,11 @@ public class ItemController {
         itemService.deleteItemImage(itemId, imageId, principal);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{itemId}/resolve")
+    public ResponseEntity<ItemDetailDto> resolveItem(@PathVariable UUID itemId,
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        ItemDetailDto resolved = itemService.resolveItem(itemId, principal);
+        return ResponseEntity.ok(resolved);
+    }
 }

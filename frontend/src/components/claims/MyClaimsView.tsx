@@ -93,7 +93,7 @@ export const MyClaimsView: React.FC<MyClaimsViewProps> = ({
             <h2 className="text-base font-semibold text-ink">My Claims</h2>
           </div>
           <p className="text-xs text-ink-secondary mt-0.5">
-            Track verification status for recovered items you claimed.
+            Track status for your claims on found items and recovery reports on lost items.
           </p>
         </div>
 
@@ -145,11 +145,11 @@ export const MyClaimsView: React.FC<MyClaimsViewProps> = ({
         </div>
       ) : claims.length === 0 ? (
         <EmptyState
-          title="No claims found"
+          title="No claims or recovery reports found"
           description={
             statusFilter === 'ALL'
-              ? "You haven't submitted any ownership claims on found items yet."
-              : `No claims currently found with status "${statusFilter}".`
+              ? "You haven't submitted any ownership claims or recovery reports yet."
+              : `No submissions currently found with status "${statusFilter}".`
           }
           actionLabel="Browse Items"
           onAction={onNavigateToFeed}
@@ -175,6 +175,13 @@ export const MyClaimsView: React.FC<MyClaimsViewProps> = ({
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      claim.itemType === 'LOST'
+                        ? 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
+                        : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
+                    }`}>
+                      {claim.itemType === 'LOST' ? 'Recovery Lead' : 'Claim'}
+                    </span>
                     <span className="font-medium text-ink text-xs sm:text-sm truncate">
                       {claim.itemTitle}
                     </span>

@@ -3,6 +3,7 @@ package com.campus.lostfound.service.impl;
 import com.campus.lostfound.dto.ClaimDetailDto;
 import com.campus.lostfound.dto.ClaimSummaryDto;
 import com.campus.lostfound.dto.CreateClaimRequest;
+import com.campus.lostfound.dto.ApproveClaimRequest;
 import com.campus.lostfound.dto.RejectClaimRequest;
 import com.campus.lostfound.dto.common.PageResponse;
 import com.campus.lostfound.entity.*;
@@ -63,10 +64,6 @@ public class ClaimServiceImpl implements ClaimService {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item not found with id: " + itemId));
 
-        if (item.getType() != ItemType.FOUND) {
-            throw new BadRequestException("Claims can only be submitted for FOUND items");
-        }
-
         if (item.getStatus() != ItemStatus.OPEN) {
             throw new ConflictException("Claims can only be submitted for OPEN items. This item is " + item.getStatus());
         }
@@ -94,12 +91,18 @@ public class ClaimServiceImpl implements ClaimService {
         );
         auditLogRepository.save(auditLog);
 
-        // Send notification to finder
+        // Send notification to item reporter (finder or loser)
+        boolean isFoundItem = item.getType() == ItemType.FOUND;
+        String notifTitle = isFoundItem ? "New Ownership Claim Submitted" : "Item Recovery Lead Submitted";
+        String notifMsg = isFoundItem
+                ? "A student submitted an ownership claim for your found item \"" + item.getTitle() + "\"."
+                : "A student submitted a found report / recovery lead for your lost item \"" + item.getTitle() + "\".";
+
         notificationService.createNotification(
                 item.getReporter(),
                 NotificationType.CLAIM_SUBMITTED,
-                "New Claim Submitted",
-                "A student submitted an ownership claim for your found item \"" + item.getTitle() + "\"."
+                notifTitle,
+                notifMsg
         );
 
         return mapToDetailDto(savedClaim, claimant);
@@ -211,7 +214,7 @@ public class ClaimServiceImpl implements ClaimService {
      * on competing claims for the same item result in exactly ONE approval and RESOLVED state.
      */
     @Override
-    public ClaimDetailDto approveClaim(UUID claimId, String userEmail) {
+    public ClaimDetailDto approveClaim(UUID claimId, ApproveClaimRequest request, String userEmail) {
         User reviewer = findUserByEmail(userEmail);
 
         Claim claim = claimRepository.findById(claimId)
@@ -225,11 +228,11 @@ public class ClaimServiceImpl implements ClaimService {
         Item item = itemRepository.findByIdWithPessimisticLock(claim.getItem().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Associated item not found"));
 
-        // Verify reviewer authorization
-        boolean isFinder = item.getReporter().getId().equals(reviewer.getId());
+        // Verify reviewer authorization (item reporter or staff)
+        boolean isReporter = item.getReporter().getId().equals(reviewer.getId());
         boolean isStaff = reviewer.getRole() == UserRole.SECURITY || reviewer.getRole() == UserRole.ADMIN;
 
-        if (!isFinder && !isStaff) {
+        if (!isReporter && !isStaff) {
             throw new ForbiddenException("You are not authorized to approve claims for this item");
         }
 
@@ -245,6 +248,9 @@ public class ClaimServiceImpl implements ClaimService {
         Instant now = Instant.now();
         claim.setStatus(ClaimStatus.APPROVED);
         claim.setDecidedAt(now);
+        if (request != null && request.getReviewNote() != null && !request.getReviewNote().isBlank()) {
+            claim.setReviewNote(request.getReviewNote().trim());
+        }
         claimRepository.save(claim);
 
         item.setStatus(ItemStatus.RESOLVED);
@@ -271,12 +277,20 @@ public class ClaimServiceImpl implements ClaimService {
         auditLogRepository.save(auditItem);
 
         // Reject all competing pending claims on the same item and notify claimants
+        boolean isFoundItem = item.getType() == ItemType.FOUND;
+        String competingNote = isFoundItem
+                ? "Item was verified and resolved with another claimant."
+                : "Lost item was verified and recovered with another finder/lead.";
+        String competingNotifMsg = isFoundItem
+                ? "Your ownership claim for \"" + item.getTitle() + "\" was not approved because the item was verified and resolved with another claimant."
+                : "Your found report for \"" + item.getTitle() + "\" was closed because the owner recovered the item with another lead.";
+
         List<Claim> competingClaims = claimRepository.findByItemIdAndStatus(item.getId(), ClaimStatus.PENDING);
         for (Claim otherClaim : competingClaims) {
             if (!otherClaim.getId().equals(claim.getId())) {
                 otherClaim.setStatus(ClaimStatus.REJECTED);
                 otherClaim.setDecidedAt(now);
-                otherClaim.setReviewNote("Item was verified and resolved with another claimant.");
+                otherClaim.setReviewNote(competingNote);
                 claimRepository.save(otherClaim);
 
                 // Audit competing rejection
@@ -294,26 +308,36 @@ public class ClaimServiceImpl implements ClaimService {
                         otherClaim.getClaimant(),
                         NotificationType.CLAIM_REJECTED,
                         "Claim Status Update",
-                        "Your ownership claim for \"" + item.getTitle() + "\" was not approved because the item was verified and resolved with another claimant."
+                        competingNotifMsg
                 );
             }
         }
 
         // Notification to approved claimant
+        String approvedTitle = isFoundItem ? "Claim Approved!" : "Recovery Confirmed!";
+        String approvedMsg = isFoundItem
+                ? "Your ownership claim for \"" + item.getTitle() + "\" has been approved. You can now coordinate recovery with campus security or the finder."
+                : "Great news! The owner confirmed your found report for \"" + item.getTitle() + "\" and marked the item as RESOLVED. Thank you for helping return it!";
+
         notificationService.createNotification(
                 claim.getClaimant(),
                 NotificationType.CLAIM_APPROVED,
-                "Claim Approved!",
-                "Your ownership claim for \"" + item.getTitle() + "\" has been approved. You can now coordinate recovery with campus security or the finder."
+                approvedTitle,
+                approvedMsg
         );
 
-        // If reviewer was staff and not the original finder, notify finder as well
-        if (!isFinder) {
+        // If reviewer was staff and not the original reporter, notify reporter as well
+        if (!isReporter) {
+            String reporterTitle = isFoundItem ? "Found Item Resolved" : "Lost Item Recovered";
+            String reporterMsg = isFoundItem
+                    ? "The item \"" + item.getTitle() + "\" you reported as found has been verified and marked as RESOLVED."
+                    : "Your lost item \"" + item.getTitle() + "\" has been verified and marked as RESOLVED by security/admin.";
+
             notificationService.createNotification(
                     item.getReporter(),
                     NotificationType.ITEM_RESOLVED,
-                    "Found Item Resolved",
-                    "The item \"" + item.getTitle() + "\" you reported as found has been verified and marked as RESOLVED."
+                    reporterTitle,
+                    reporterMsg
             );
         }
 
@@ -337,10 +361,10 @@ public class ClaimServiceImpl implements ClaimService {
 
         Item item = claim.getItem();
 
-        boolean isFinder = item.getReporter().getId().equals(reviewer.getId());
+        boolean isReporter = item.getReporter().getId().equals(reviewer.getId());
         boolean isStaff = reviewer.getRole() == UserRole.SECURITY || reviewer.getRole() == UserRole.ADMIN;
 
-        if (!isFinder && !isStaff) {
+        if (!isReporter && !isStaff) {
             throw new ForbiddenException("You are not authorized to reject claims for this item");
         }
 
@@ -367,12 +391,20 @@ public class ClaimServiceImpl implements ClaimService {
         auditLogRepository.save(auditLog);
 
         // Notification to claimant
+        boolean isFoundItem = item.getType() == ItemType.FOUND;
+        String rejectTitle = isFoundItem ? "Claim Status Update" : "Recovery Report Update";
+        String rejectMsg = isFoundItem
+                ? "Your ownership claim for \"" + item.getTitle() + "\" was not approved."
+                : "Your found report for lost item \"" + item.getTitle() + "\" was not accepted by the owner.";
+        if (savedClaim.getReviewNote() != null && !savedClaim.getReviewNote().isBlank()) {
+            rejectMsg += " Reason: " + savedClaim.getReviewNote();
+        }
+
         notificationService.createNotification(
                 claim.getClaimant(),
                 NotificationType.CLAIM_REJECTED,
-                "Claim Status Update",
-                "Your ownership claim for \"" + item.getTitle() + "\" was not approved." +
-                        (savedClaim.getReviewNote() != null ? " Reason: " + savedClaim.getReviewNote() : "")
+                rejectTitle,
+                rejectMsg
         );
 
         return mapToDetailDto(savedClaim, reviewer);

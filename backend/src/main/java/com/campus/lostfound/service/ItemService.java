@@ -34,4 +34,6 @@ public interface ItemService {
     ItemImageDto uploadItemImage(UUID itemId, MultipartFile file, UserPrincipal principal);
 
     void deleteItemImage(UUID itemId, UUID imageId, UserPrincipal principal);
+
+    ItemDetailDto resolveItem(UUID itemId, UserPrincipal principal);
 }

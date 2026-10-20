@@ -72,7 +72,7 @@ public class ItemDetailDto {
                 ? item.getImages().stream().map(ItemImageDto::fromEntity).collect(Collectors.toList())
                 : Collections.emptyList();
 
-        boolean hasVerification = item.getType() == ItemType.FOUND && StringUtils.hasText(item.getVerificationQuestion());
+        boolean hasVerification = StringUtils.hasText(item.getVerificationQuestion());
         boolean owner = currentUserId != null && item.getReporter() != null && currentUserId.equals(item.getReporter().getId());
 
         return new ItemDetailDto(

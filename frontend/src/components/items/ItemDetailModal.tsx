@@ -14,6 +14,9 @@ import {
   AlertCircle,
   Upload,
   Trash2,
+  CheckCircle2,
+  ShieldCheck,
+  Handshake,
 } from 'lucide-react';
 import { formatDate, formatDateTime } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
@@ -37,6 +40,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  const [resolving, setResolving] = useState<boolean>(false);
 
   useEffect(() => {
     if (!itemId) return;
@@ -129,6 +133,27 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
       } else {
         alert('Failed to delete image');
       }
+    }
+  };
+
+  const handleDirectResolve = async () => {
+    if (!item) return;
+    if (!confirm('Mark this item as resolved? Any other active pending claims will be automatically closed.')) {
+      return;
+    }
+
+    try {
+      setResolving(true);
+      const resolved = await itemService.resolveItem(item.id);
+      setItem(resolved);
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        alert((err as { message: string }).message);
+      } else {
+        alert('Failed to resolve item.');
+      }
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -341,8 +366,20 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                   </div>
                 )}
 
+                {/* Resolved Banner */}
+                {item.status === 'RESOLVED' && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-medium">
+                      {isLost
+                        ? 'This lost item has been recovered and marked as RESOLVED.'
+                        : 'This found item has been claimed and marked as RESOLVED.'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Actions */}
-                <div className="pt-2 flex items-center gap-2">
+                <div className="pt-2 flex flex-wrap items-center gap-2">
                   {item.isOwner && (
                     <button
                       onClick={() => {
@@ -356,6 +393,17 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                     </button>
                   )}
 
+                  {item.isOwner && item.status === 'OPEN' && (
+                    <button
+                      onClick={handleDirectResolve}
+                      disabled={resolving}
+                      className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors cursor-pointer w-full sm:w-auto disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{resolving ? 'Resolving...' : 'Mark as Resolved'}</span>
+                    </button>
+                  )}
+
                   {!item.isOwner && item.type === 'FOUND' && item.status === 'OPEN' && onClaim && (
                     <button
                       onClick={() => {
@@ -364,7 +412,21 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                       }}
                       className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-accent text-white text-xs font-medium hover:bg-accent-hover transition-colors shadow-subtle cursor-pointer w-full sm:w-auto"
                     >
+                      <ShieldCheck className="w-3.5 h-3.5" />
                       <span>Claim this item</span>
+                    </button>
+                  )}
+
+                  {!item.isOwner && item.type === 'LOST' && item.status === 'OPEN' && onClaim && (
+                    <button
+                      onClick={() => {
+                        onClaim(item);
+                        onClose();
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors shadow-subtle cursor-pointer w-full sm:w-auto"
+                    >
+                      <Handshake className="w-3.5 h-3.5" />
+                      <span>I Found This Item / Help Return</span>
                     </button>
                   )}
                 </div>

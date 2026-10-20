@@ -9,6 +9,7 @@ import {
   Lock,
   ArrowRight,
   Info,
+  Handshake,
 } from 'lucide-react';
 
 interface ClaimItemModalProps {
@@ -30,10 +31,16 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isLost = item.type === 'LOST';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!answer.trim()) {
-      setError('Please provide your verification answer or proof of ownership details.');
+      setError(
+        isLost
+          ? 'Please provide details on where you found the item or where it is kept.'
+          : 'Please provide your verification answer or proof of ownership details.'
+      );
       return;
     }
 
@@ -48,7 +55,11 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
       if (err && typeof err === 'object' && 'message' in err) {
         setError((err as { message: string }).message);
       } else {
-        setError('Failed to submit claim. You may already have a pending claim for this item.');
+        setError(
+          isLost
+            ? 'Failed to submit found report. You may already have a pending report for this item.'
+            : 'Failed to submit claim. You may already have a pending claim for this item.'
+        );
       }
     } finally {
       setLoading(false);
@@ -71,15 +82,23 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
-              <ShieldCheck className="w-4 h-4" />
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                isLost
+                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600'
+                  : 'bg-accent/10 border border-accent/20 text-accent'
+              }`}
+            >
+              {isLost ? <Handshake className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
             </div>
             <div>
               <h2 id="claim-modal-title" className="font-semibold text-ink text-sm">
-                Claim Item
+                {isLost ? 'Found This Item? Help Return' : 'Claim Item'}
               </h2>
               <p className="text-xs text-ink-secondary">
-                Submit verification details to verify your ownership.
+                {isLost
+                  ? 'Provide details of where you found it or where it is kept to help the owner recover it.'
+                  : 'Submit verification details to verify your ownership.'}
               </p>
             </div>
           </div>
@@ -115,7 +134,18 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h4 className="font-medium text-ink text-xs truncate">{item.title}</h4>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase ${
+                    isLost
+                      ? 'bg-lost-bg text-lost-text border border-lost-border'
+                      : 'bg-found-bg text-found-text border border-found-border'
+                  }`}
+                >
+                  {item.type}
+                </span>
+                <h4 className="font-medium text-ink text-xs truncate">{item.title}</h4>
+              </div>
               <p className="text-[11px] text-ink-secondary mt-0.5 truncate">
                 {item.category?.name} • {item.location?.name}
               </p>
@@ -128,7 +158,7 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-accent" />
                 <span className="text-[11px] font-semibold text-ink">
-                  Verification Question
+                  {isLost ? "Owner's Verification Question" : 'Verification Question'}
                 </span>
               </div>
               <p className="text-xs text-ink-secondary bg-surface p-2.5 rounded-lg border border-surface-border">
@@ -137,10 +167,13 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
             </div>
           )}
 
-          {/* Claimant Proof Input */}
+          {/* User Input */}
           <div className="space-y-1">
             <label htmlFor="verification-answer" className="block text-xs font-medium text-ink flex items-center justify-between">
-              <span>Your Answer / Ownership Proof <span className="text-red-500">*</span></span>
+              <span>
+                {isLost ? 'Where did you find it? / Recovery details' : 'Your Answer / Ownership Proof'}{' '}
+                <span className="text-red-500">*</span>
+              </span>
               <span className="text-[11px] text-ink-muted flex items-center gap-1 font-normal">
                 <Lock className="w-3 h-3 text-ink-muted" /> Confidential
               </span>
@@ -152,7 +185,11 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
               disabled={loading}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Describe distinguishing features, contents, serial numbers, case characteristics, or answer the question..."
+              placeholder={
+                isLost
+                  ? 'Describe where you spotted or found it, where it is currently placed (e.g. security desk, reception, room number), or how the owner can contact you to collect it...'
+                  : 'Describe distinguishing features, contents, serial numbers, case characteristics, or answer the question...'
+              }
               className="w-full px-3 py-2 bg-surface border border-surface-border rounded-lg text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
           </div>
@@ -160,7 +197,9 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
           <div className="p-2.5 rounded-lg bg-surface-secondary border border-surface-border text-[11px] text-ink-secondary flex items-start gap-2">
             <Info className="w-3.5 h-3.5 text-ink-muted shrink-0 mt-0.5" />
             <span>
-              The finder or authorized campus personnel will review your response before releasing the item.
+              {isLost
+                ? 'The student who lost this item will be notified immediately to review your report and confirm recovery.'
+                : 'The finder or authorized campus personnel will review your response before releasing the item.'}
             </span>
           </div>
 
@@ -177,7 +216,9 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
             <button
               type="submit"
               disabled={loading || !answer.trim()}
-              className="px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium shadow-xs disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+              className={`px-4 py-1.5 rounded-lg text-white text-xs font-medium shadow-xs disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                isLost ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-accent hover:bg-accent-hover'
+              }`}
             >
               {loading ? (
                 <>
@@ -186,7 +227,7 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Submit Claim</span>
+                  <span>{isLost ? 'Submit Found Report' : 'Submit Claim'}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
@@ -198,3 +239,4 @@ export const ClaimItemModal: React.FC<ClaimItemModalProps> = ({
   );
 };
 
+export default ClaimItemModal;

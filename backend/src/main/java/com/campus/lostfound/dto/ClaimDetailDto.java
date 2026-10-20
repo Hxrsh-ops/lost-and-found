@@ -165,7 +165,7 @@ public class ClaimDetailDto {
     }
 
     @JsonProperty("isClaimant")
-    public boolean isClaimant() {
+    public boolean getIsClaimant() {
         return isClaimant;
     }
 
@@ -174,7 +174,7 @@ public class ClaimDetailDto {
     }
 
     @JsonProperty("canReview")
-    public boolean isCanReview() {
+    public boolean getCanReview() {
         return canReview;
     }
 
